@@ -5,10 +5,10 @@ use strict;
 
 use FileHandle;
 use Getopt::Long;
-use GPS::Lowrance 0.10;
+use GPS::Lowrance 0.21;
 use GPS::Lowrance::Trail 0.40;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 my %ALLOWED_FORMATS = (
   'gdm16'  => 'write_gdm16',
@@ -34,7 +34,7 @@ if ($Help) {
 Usage: $0 --device=device --baudrate=baud --trail=trail]
          [--format=latlon|utm|gdm16] [--filename=filename]
          [--quiet] [--help]
-Extract trails from Lowrance or Eagle GPS.
+Download trails from Lowrance or Eagle GPS.
  Version: $VERSION
  Example:
   $0 --device=com1 --baudrate=57600 --trail=1
@@ -76,11 +76,11 @@ unless ($Quiet) {
 # The method used by this device requires protocol version 2.0
 
 if ($Gps->get_protocol_version < 1) {
-  die "Device does not support plot trail extraction\n";
+  die "Device does not support plot trail downloads\n";
 }
 
 if (($TrailNo<1) || ($TrailNo>$Gps->get_num_of_plot_trails)) {
-  die "Invalid plot trail number ``$TrailNo\'\'\n";
+   die "Invalid plot trail number ``$TrailNo\'\'\n";
 }
 
 sub status {

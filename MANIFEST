@@ -8,6 +8,7 @@ lib/GPS/Lowrance/Screen.pm
 lib/GPS/Lowrance/Waypoints.pm
 t/GPS-Lowrance.t
 t/Geo-Coordinates-MercaterMeters.t
-eg/extract-trail.pl
 eg/capture-screen.pl
+eg/download-trail.pl
+eg/upload-trail.pl
 META.yml

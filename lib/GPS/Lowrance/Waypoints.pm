@@ -20,7 +20,42 @@ our @ISA = qw(GPS::Lowrance::Trail);
 # our @EXPORT = qw(
 # );
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
+
+sub new {
+  my $class = shift;
+  my $self  = $class->SUPER::new(@_);
+  $self->{WPT_INDEX} = { };             # waypoint numbers
+  return $self;
+}
+
+sub add_point {
+  my $self = shift;
+  assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
+
+  my ($latitude, $longitude, $name, $date, $symbol, $number) = @_;
+
+  assert( ($latitude  >= -90) && ($latitude  <= 90) ), if DEBUG;
+  assert( ($longitude >= -90) && ($longitude <= 90) ), if DEBUG;
+
+  $name ||= ""; 
+  if ($name) {
+    $name =~ /^\"?(.*)\"?$/; $name = $1;
+  }
+
+  $symbol ||= 0;
+
+  unless ($number) { $number = $self->size; }
+  if (defined $self->{WPT_INDEX}->{$number}) {
+    die "waypoint number ``$number\'\' already defined";
+  } else {
+    $self->{WPT_INDEX}->{$number} = $self->size;
+  }
+
+  push @{ $self->{POINTS} },
+    [ $latitude, $longitude, $name, $date, $number, $symbol ];
+  ++$self->{COUNT};
+}
 
 sub trail_num {
   return 0;
@@ -101,6 +136,12 @@ methods with exceptions outlined below.
 =head2 Methods
 
 =over
+
+=item add_point
+
+  $wpt->add_point( $lat, $lon, $name, $date, $sym_num, $wpt_num );
+
+Add a new waypoint.
 
 =item trail_num
 

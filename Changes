@@ -1,6 +1,20 @@
 Revision history for Perl extension GPS::Lowrance. (Note: Changes that
 are not backwards compatible are marked with an asterisk, "*".)
 
+0.21  12 Mar 2004
+	* fixed bug with uploading plot trails
+	- added eg/upload-trail.pl file
+	- eg/renamed extract-trail.pl to download-trail.pl
+	- get_product_description is now cached
+	- added stubs for unimplemented functions
+	- added get_graphical_symbol to GPS::Lowrance::Screen
+	* changed syntax for calls to get_current_screen to
+	   GPS::Lowrance::Screen
+	- added get_graphical_symbol_info, get_number_of_graphical_symbols
+	* removed checksum from get_product_info (not needed)
+	- added missing module in REQUIREMENTS list in POD
+	- added support for preserving waypoint numbers and symbols
+
 0.20  11 Mar 2004
 	- made send_a_waypoint synonym for set_a_waypoint to be
           consistent with LSI naming convention

@@ -37,7 +37,7 @@ our %EXPORT_TAGS = (
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 our $AUTOLOAD;
 
@@ -279,19 +279,26 @@ sub _make_method {
   }
 }
 
+sub _unimplemented {
+  die "This method is not yet implemented";
+}
 
 BEGIN {
 
   *get_product_description    = _make_method( 0x0004, undef, RAW_BUFFER,
-     NO_CACHE );
+     CACHE );
 
   *read_memory_location       = _make_method( 0x0008, [
       qw( address:V count:v cartridge_select:C ) ], RAW_BUFFER,
      NO_CACHE );
 
+  *write_memory_location      = *_unimplemented; # 0x0009
+
   *login_to_serial_port       = _make_method( 0x000d, undef, [
         qw( reserved:C checksum:C )
   ], NO_CACHE );
+
+  *change_baud_rate           = *_unimplemented; # 0x010a
 
   *request_screen_pointer     = _make_method( 0x0301, undef, [
         qw( pixel_x:v pixel_y:v black_address:V black_count:v
@@ -321,6 +328,20 @@ BEGIN {
   # 1992. So take the GPS date and add 694242000 to convert to Unix
   # time.
 
+  *get_a_route                  = *_unimplemented; # 0x0305
+
+  *set_a_route                  = *_unimplemented; # 0x0305
+
+  *send_a_route                 = *get_a_route;
+
+  *get_plot_trail_pointer       = _make_method( 0x0307, [
+        qw( plot_trail_number:C ) ], [
+        qw( reserved:C plot_trail_number:C
+	    structure_pointer:V structure_size:V )
+  ], NO_CACHE );
+
+  # Protocol Version 2.0 devices may not respond to get_plot_trail_pointer.
+
   *get_number_of_icons          = _make_method( 0x0308, undef, [
         qw( reserved:C number_of_icons:v )
   ], NO_CACHE );
@@ -330,13 +351,36 @@ BEGIN {
         qw( reserved:C icon_number:v latitude:V longitude:V icon_symbol:C )
   ], NO_CACHE );
 
-  *get_product_info             = _make_method( 0x030e, undef, [
+  *set_number_of_icons          = _make_method( 0x030a, [
+        qw( number_of_icons:v ) ], undef,
+     NO_CACHE );
+
+  *set_icon_symbol              = *_unimplemented; # 0x030b
+
+  *send_icon                    = *set_icon_symbol;
+
+  *get_number_of_graphical_symbols = _make_method( 0x030c, undef, [
+        qw( reserved:C number_of_symbols:C )
+  ], CACHE );
+
+  # Note: LSI 100 v1.1 documents says number_of_symbols is a word.
+
+  *get_graphical_symbol_info       = _make_method( 0x030d, [
+        qw( icon_symbol_index:v ) ], [
+        qw( reserved:C icon_symbol_index:C
+            width:C height:C bytes_per_symbol:C 
+	    structure_pointer:V )
+  ], NO_CACHE );
+
+  # Note: LSI 100 v1.1 document leaves out the returned icon_symbol_index.
+
+  *get_product_info                = _make_method( 0x030e, undef, [
 	qw( reserved:C product_id:v protocol_version:v
 	    screen_type:v screen_width:v screen_height:v
 	    num_of_waypoints:v num_of_icons:v num_of_routes:v
             num_of_waypoints_per_route:v
 	    num_of_plot_trails:C num_of_icon_symbols:C screen_rotate_angle:C
-	    run_time:V checksum:C )
+	    run_time:V )
   ], CACHE );
 
   foreach my $attribute (qw(product_id protocol_version
@@ -354,7 +398,7 @@ BEGIN {
     }
   }
 
-  *get_plot_trail_origin         = _make_method( 0x0312, [
+  *get_plot_trail_origin           = _make_method( 0x0312, [
         qw( plot_trail_number:C ) ], [
         qw( reserved:C plot_trail_number:C
 	  origin_y:V origin_x:V number_of_deltas:v )
@@ -371,15 +415,14 @@ BEGIN {
           (map { ("delta_y_$_:v", "delta_x_$_:v",) } (1..MAX_DELTAS) )
   ] );
 
-
-  *set_plot_trail_origin         = _make_method( 0x0314, [
+  *set_plot_trail_origin           = _make_method( 0x0314, [
         qw( plot_trail_number:C
 	  origin_y:V origin_x:V number_of_deltas:v ) ], undef,
      NO_CACHE,
         [ qw( origin_y:V origin_x:V ) ],
         undef );
 
-  *set_plot_trail_deltas         = _make_method( 0x0315, [
+  *set_plot_trail_deltas           = _make_method( 0x0315, [
         ( qw( plot_trail_number:C number_of_deltas:v ),
           (map { ("delta_y_$_:v", "delta_x_$_:v",) } (1..MAX_DELTAS) ) )
   ], undef,
@@ -464,7 +507,9 @@ sub get_waypoints {
 	$waypoints->add_point(
            mercator_meters_to_degrees( $wpt->{latitude}, $wpt->{longitude} ),
            $wpt->{name},
-           gps_to_unix_time( $wpt->{date} ) );
+           gps_to_unix_time( $wpt->{date} ),
+           $num-1,
+           $wpt->{icon_symbol} );
       };
     }
   }
@@ -486,6 +531,8 @@ sub set_waypoints {
   my $waypoints = $input{waypoints};
   assert( UNIVERSAL::isa( $waypoints, "GPS::Lowrance::Waypoints" ) ), if DEBUG;
 
+  my $ignore    = $input{ignore_waypoint_numbers};
+
   if ($waypoints->size > $self->get_num_of_waypoints) {
     die "waypoints too large";
   }
@@ -499,14 +546,17 @@ sub set_waypoints {
 
     my ($lat_m, $lon_m) = degrees_to_mercator_meters( $wpt->[0], $wpt->[1] );
       
+    my $wpt_num = $wpt->[4];
+    unless (!$ignore || (defined $wpt_num)) { $wpt_num = $num-1; }
+
     $self->set_a_waypoint(
-      waypoint_number => $num-1,
+      waypoint_number => $wpt_num,
       latitude        => $lat_m,
       longitude       => $lon_m,
       name            => $wpt->[2],
       date            => unix_to_gps_time($wpt->[3]),
       status          => 1,
-      icon_symbol     => 0,
+      icon_symbol     => $wpt->[5]||0,
     );
 
     $num++;
@@ -635,6 +685,8 @@ sub set_plot_trail {
 
     my $expected = ($count > MAX_DELTAS) ? MAX_DELTAS : $count;
 
+    $args{number_of_deltas} = $expected;
+ 
     $count -= $expected;
     
     my $delta = 1;
@@ -678,6 +730,7 @@ GPS::Lowrance::Trail requires these modules:
 
   Geo::Coordinates::DecimalDegrees
   Geo::Coordinates::UTM
+  XML::Generator
 
 If you want to use the screen capture function, you also need
 the following module:
@@ -713,9 +766,10 @@ For Windows playforms, you may need to use C<nmake> instead.
 
 =head1 DESCRIPTION
 
-This module provides a variety of higher-level methods for communicating
-with Lowrance and Eagle GPS receivers which support the LSI 100 protocol.
-It also provides some utility functions for converting data.
+This module provides a variety of low- and high-level methods for
+communicating with Lowrance and Eagle GPS receivers which support the
+LSI 100 protocol.  It also provides some utility functions for
+converting data.
 
 This module is a work in progress.
 
@@ -786,7 +840,7 @@ The value is based on the original call to L</get_product_information>.
 
 The meaning of the return values:
 
-   0 = Black pane only
+   0 = Black Pane only
    1 = Black and Grey Pane
    2 = Packed Pixel
 
@@ -861,7 +915,8 @@ The value is based on the original call to L</get_product_information>.
 
   $angle = $gps->get_screen_rotate_angle;
 
-Returns the screen rotation angle (0, 90, 180, or 270).
+Returns the screen rotation angle (0, 90, 180, or 270).  This can be
+used to determine the orientation of screens captures and icons.
 
 The value is based on the original call to L</get_product_information>.
 
@@ -895,7 +950,7 @@ Reads C<$size> bytes from the memory location in cartridge C<$cart>. A
 maximum of 256 bytes can be read.  If you need to read larger blocks,
 use L</read_memory> instead.
 
-C<$cart> is either 1 or 2.
+C<$cart> is either 0, 1 or 2.
 
 =item read_memory
 
@@ -948,6 +1003,10 @@ Called to unlock the GPS display.
 
 =item get_plot_trail_origin
 
+  $hashref = $fps->get_plot_trail_origin(
+    plot_trail_numer => $num,
+  );
+
 Note that returned values are in mercator meters and must be
 converted. (See L<Geo::Coordinates::MercatorMeters> for conversion
 routines.)
@@ -959,6 +1018,8 @@ See L</get_plot_trail>, which is a wrapper routine for downloading
 plot trails.
 
 =item get_plot_trail_deltas
+
+
 
 The protocol specifies that no more than 40 deltas may be requested at
 a time.
@@ -1111,9 +1172,33 @@ Note that the waypoint number and symbol is lost in the output.
   $gps->set_waypoints(
     waypoints => $wpt,
     callback  => $coderef,
+    ignore_waypoint_numbers => $bool,
   );
 
 Uploads waypoints in the unit.
+
+=item get_number_of_graphical_symbols
+
+  $num = $gps->get_number_of_graphical_symbols;
+
+Returns the number of graphical icon symbols in the device.  This is
+not necessarily the maximum number of icon symbols that the device can
+support. (See L</get_num_of_icon_symbols>.)
+
+=item get_graphical_sumbol
+
+  $info = $gps->get_graphical_symbol(
+    icon_symbol_index => $num,
+  );
+
+Returns information about the icon symbol:
+
+  width                  = width-1 of the icon
+  height                 = height of the icon
+  structure_pointer      = memory address where the icon bitmap is
+  bytes_per_symbol       = amount of data
+
+See the C<get_graphical_symbol> function in C<GPS::Lowrance::Screen>.
 
 =item disconnect
 
@@ -1180,14 +1265,15 @@ not yet been tested.
 
 =head2 Known Issues
 
+The LSI-100 protocol uses mercator meters for coordinates, whereas
+these functions (and most mapping software) use degrees.  Because of
+this, there will be rounding errors in converting between the formats.
+This means that data (e.g. trails and waypoints) which are repeatedly
+downloaded and uploaded will become increasingly inaccurate.
+
 The protocol uses little-endian values, and due to some quirks in the
 decoding functions, they may not be converted properly on big-endian
 machines.
-
-The native Perl functions which handle this issue in a machine-
-independent way only handle unsigned values.  Because of that, certain
-values will need to be converted using the L</signed_long> and
-L</signed_int> functions.
 
 =head2 Compatability
 

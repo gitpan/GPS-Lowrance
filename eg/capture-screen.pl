@@ -7,9 +7,9 @@ use GD;
 use FileHandle;
 use Getopt::Long;
 use GPS::Lowrance 0.10;
-use GPS::Lowrance::Screen;
+use GPS::Lowrance::Screen 0.03;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 my %ALLOWED_FORMATS = (
   'png'    => 'png',
@@ -76,7 +76,7 @@ sub status {
   }
 }
 
-my $Img = get_current_screen( $Gps, \&status );
+my $Img = get_current_screen( $Gps, callback => \&status, );
 
 unless ($Quiet) {
   print STDERR "\n";

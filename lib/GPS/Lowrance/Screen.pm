@@ -6,7 +6,7 @@ use warnings;
 
 use Carp::Assert;
 use GD;
-use GPS::Lowrance 0.02;
+use GPS::Lowrance 0.21;
 
 require Exporter;
 # use AutoLoader qw(AUTOLOAD);
@@ -14,25 +14,27 @@ require Exporter;
 our @ISA = qw(Exporter);
 
 our %EXPORT_TAGS = ( 'all' => [ qw(
-  get_current_screen
+  get_current_screen get_graphical_symbol
 ) ] );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw(
-  get_current_screen
+  get_current_screen get_graphical_symbol
 );
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 sub get_current_screen {
   my $gps = shift;
   assert( UNIVERSAL::isa( $gps, "GPS::Lowrance" ) ), if DEBUG;
 
-  my $callback = shift || sub { return; };
+  my %input    = @_;
+
+  my $callback = $input{callback} || sub { return; };
   assert( ref($callback) eq "CODE" ), if DEBUG;
 
-  my $blk_rgb = shift || [0,   0,   0  ];
-  my $gry_rgb = shift || [128, 128, 128];
+  my $blk_rgb  = $input{black_rgb} || [0,   0,   0  ];
+  my $gry_rgb  = $input{grey_rgb}  || [128, 128, 128];
 
   my $info = $gps->request_screen_pointer;
 
@@ -45,14 +47,6 @@ sub get_current_screen {
        ($gps->get_screen_rotate_angle == 270) ) {
     ($width, $height) = ($height, $width);
   }
-
-  my $img = new GD::Image( $width, $height );
-
-  # It's tempting to use Graphics::ColorNames for "black" and "grey", but
-  # to load a module for just two colors seems pointless.
-
-  my $blk = $img->colorAllocate( @$blk_rgb );
-  my $gry = $img->colorAllocate( @$gry_rgb );
 
   assert( ($width % 8) == 0 ), if DEBUG; # should be a multiple of 8
 
@@ -69,11 +63,33 @@ sub get_current_screen {
 
   $gps->unfreeze_current_unit_screen;
 
-  # If we were returning a monochrome Windows Bitmap, we could probably
-  # copy that data as-is.
+  my $img = _bitmap_to_image($blk_plane, $width, $height, $blk_rgb, $gry_rgb);
+
+  if ($gps->get_screen_rotate_angle == 90 ) {
+    return $img->copyRotate270();
+  } elsif ($gps->get_screen_rotate_angle == 180 ) {
+    return $img->copyRotate180();
+  } elsif ($gps->get_screen_rotate_angle == 270 ) {
+    return $img->copyRotate90();
+  } else {
+    return $img;
+  }
+}
+
+
+sub _bitmap_to_image {
+  my ($data, $width, $height, $blk_rgb, $gry_rgb) = @_;
+  
+  my $img = new GD::Image( $width, $height );
+
+  # It's tempting to use Graphics::ColorNames for "black" and "grey", but
+  # to load a module for just two colors seems pointless.
+
+  my $blk = $img->colorAllocate( @$blk_rgb );
+  my $gry = $img->colorAllocate( @$gry_rgb );
 
   my ($x, $y) = (0, 0);
-  foreach my $byte (split //, $blk_plane) {
+  foreach my $byte (split //, $data) {
     my $i   = unpack "C", $byte;
     my $bit = 128;
     while ($bit) {
@@ -88,6 +104,47 @@ sub get_current_screen {
       }
     }
   }
+  return $img;
+}
+
+sub get_graphical_symbol {
+  my $gps = shift;
+  assert( UNIVERSAL::isa( $gps, "GPS::Lowrance" ) ), if DEBUG;
+
+  my %input    = @_;
+
+  my $callback = $input{callback} || sub { return; };
+  assert( ref($callback) eq "CODE" ), if DEBUG;
+
+  my $blk_rgb  = $input{black_rgb} || [0,   0,   0  ];
+  my $gry_rgb  = $input{grey_rgb}  || [128, 128, 128];
+
+  my $sym_num  = $input{icon_symbol_index} || 0;
+  unless( ($sym_num >= 0) &&
+	  ($sym_num < $gps->get_number_of_graphical_symbols) ) {
+    die "Invalid icon number: ``$sym_num\'\'";
+  }
+
+  my $info = $gps->get_graphical_symbol_info( icon_symbol_index => $sym_num, );
+
+  assert( $info->{icon_symbol_index} == $sym_num ), if DEBUG;
+
+  my $width  = $info->{width} + 1;
+  my $height = $info->{height};
+
+  assert( ($width % 8) == 0 ), if DEBUG; # should be a multiple of 8
+
+  my $size = $info->{bytes_per_symbol};
+
+  my $icon = $gps->read_memory(
+     address          => $info->{structure_pointer},
+     count            => $size,
+     cartridge_select => 0,
+     callback         => $callback,
+  );
+
+
+  my $img = _bitmap_to_image($icon, $width, $height, $blk_rgb, $gry_rgb);
 
   if ($gps->get_screen_rotate_angle == 90 ) {
     return $img->copyRotate270();
@@ -105,7 +162,7 @@ __END__
 
 =head1 NAME
 
-GPS::Lowrance::Screen - capture screen from GPS device
+GPS::Lowrance::Screen - capture screen or icons from GPS device
 
 =head1 SYNOPSIS
 
@@ -134,7 +191,7 @@ It is included with the C<GPS::Lowrance> distribution.
 
 =head1 DESCRIPTION
 
-Captures the current screen on a Lowrance or Eagle GPS.
+Captures the current screen or icons on a Lowrance or Eagle GPS.
 
 This has been made a separate module so that one is not required to
 have graphics modules installed in order to use the main
@@ -146,18 +203,32 @@ L<GPS::Lowrance> module.
 
 =item get_current_screen
 
-  $img = get_current_screen( $gps, $callback, $rgb_ref, $rgb_ref );
+  $img = get_current_screen( $gps,
+    black_rgb => [0x00, 0x00, 0x00],
+    grey_rgb  => [0x80, 0x80, 0x80],
+    callback  => $coderef
+  );
 
 Returns a C<GD::Image> object of the current screen on the GPS.
 
 The C<$callback> refers to a subroutine which handles the status. See
 L<GPS::Lowrance> documentation for more information about callbacks.
 
-You can also specify the RGB values to use instead of black and
-grey. If you prefer black on white, use:
+The C<black_rgb> and C<grey_rgb> values are optional.
 
-  $img = get_current_screen( $gps, undef, [0,0,0], [255,255,255] );
-  
+=item get_icon_graphic
+
+  $img = get_icon_graphic( $gps,
+    icon_symbol_index => $icon_num,
+    black_rgb => [0x00, 0x00, 0x00],
+    grey_rgb  => [0x80, 0x80, 0x80],
+    callback  => $coderef
+  );
+
+
+Returns a C<GD::Image> object of the icon specified by
+C<icon_symbol_index>.  
+
 =back
 
 =head1 CAVEATS

@@ -43,78 +43,68 @@ require Data::Dumper;
 my $gps = GPS::Lowrance->connect(
             device     => 'com1',
             baudrate   => 57600,
-            debug      => 0,
+            debug      => 1,
             timeout    => 2,
-            retrycount => 1,
+            retrycount => 0,
           );
 
 my $info = $gps->get_product_info;
 print STDERR Data::Dumper->Dump([$info],['info']);
 
-print STDERR $gps->get_product_id, "\n";
+$gps->login_to_serial_port;
 
-print STDERR $gps->get_product_description, "\n";
+# print STDERR $gps->get_product_id, "\n";
+
+# print STDERR $gps->get_product_description, "\n";
 
 # use GPS::Lowrance::Screen;
 # use GD;
 
-# my $img = get_current_screen( $gps, undef, [128,0,0], [255,255,255] );
+# $info = $gps->get_number_of_graphical_symbols;
+# print STDERR Data::Dumper->Dump([$info],['info']);
+
+# $info = $gps->get_graphical_symbol_info( icon_symbol_index => 14, );
+# print STDERR Data::Dumper->Dump([$info],['info']);
+
+# my $img = get_graphical_symbol( $gps, icon_symbol_index => 14, );
 
 # my $fo = new FileHandle ">foo.png";
 # binmode $fo; print $fo $img->png; $fo->close;
 
-# $info = $gps->get_a_waypoint(  waypoint_number => 7 );
-# print STDERR Data::Dumper->Dump([$info],['info']);
 
-# print STDERR scalar(localtime(gps_to_unix_time($info->{date}))), "\n",
-#     join(",", mercator_meters_to_degrees( $info->{latitude}, $info->{longitude} ) ), "\n";
+# $img = get_current_screen( $gps );
 
+# $fo = new FileHandle ">bar.png";
+# binmode $fo; print $fo $img->png; $fo->close;
 
-# $info->{waypoint_number} = 13;
-
-# $info->{date} = time - 694242000;
-# $info->{name} = "PerlTest";
-
-# $gps->set_a_waypoint( %$info );
-
-# $info = $gps->get_waypoint(  waypoint_number => $info->{waypoint_number} );
-# print STDERR Data::Dumper->Dump([$info],['info']);
+# my $img = get_current_screen( $gps, undef, [128,0,0], [255,255,255] );
 
 
-# $gps->login_to_serial_port;
-
-# $info = $gps->get_icon_symbol( icon_number => 0 );
-# print STDERR Data::Dumper->Dump([$info],['info']);
-
-# $info = $gps->get_plot_trail_origin( plot_trail_number => 0 );
-# print STDERR Data::Dumper->Dump([$info],['info']);
-# $info = $gps->get_plot_trail_deltas( plot_trail_number => 0, number_of_deltas => 40, );
-# print STDERR Data::Dumper->Dump([$info],['info']);
-# $info = $gps->get_plot_trail_deltas( plot_trail_number => 0, number_of_deltas => 40, );
+# $info = $gps->get_a_waypoint(  waypoint_number => 11 );
 # print STDERR Data::Dumper->Dump([$info],['info']);
 
 
 
-use GPS::Lowrance::Trail;
-use GPS::Lowrance::Waypoints;
+# use GPS::Lowrance::Trail;
+# use GPS::Lowrance::Waypoints;
 
-sub callback {
-  my $info = shift;
-  print STDERR $info, "\r";
-}
+# sub callback {
+#   my $info = shift;
+#   print STDERR $info, "\r";
+# }
 
-my $wpt = $gps->get_waypoints( callback => \&callback, waypoints => [1..4] );
+# my $wpt = $gps->get_waypoints( callback => \&callback, waypoints => [1..4] );
 
-$wpt->write_utm( \*STDERR );
+# $wpt->write_utm( \*STDERR );
 
-$wpt = $gps->get_waypoints( callback => \&callback, waypoints => [5..8] );
-$wpt->write_utm( \*STDERR );
+# $wpt = $gps->get_waypoints( callback => \&callback, waypoints => [5..8] );
+# $wpt->write_utm( \*STDERR );
 
-$gps->set_waypoints( callback => \&callback, waypoints => $wpt );
+# $gps->set_waypoints( callback => \&callback, waypoints => $wpt );
 
-my $wpt = $gps->get_waypoints( callback => \&callback, waypoints => [1..4] );
+# my $wpt = $gps->get_waypoints( callback => \&callback, waypoints => [1..4] );
 
-$wpt->write_utm( \*STDERR );
+# $wpt->write_gpx( \*STDERR );
 
 
 # # print STDERR $gps->get_protocol_version, "\n";
@@ -129,6 +119,7 @@ $wpt->write_utm( \*STDERR );
 # $trail = $gps->get_plot_trail( plot_trail_number => 0 );
 # $trail->write_latlon( \*STDERR );
 
-
+# $info = $gps->get_plot_trail_pointer( plot_trail_number => 0, );
+#print STDERR Data::Dumper->Dump([$info],['info']);
 
 $gps->disconnect;

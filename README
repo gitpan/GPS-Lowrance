@@ -49,33 +49,21 @@ SYNOPSIS
       $gps->disconnect;
 
 REVISION HISTORY
-    Changes to this package since v0.10:
+    Changes to this package since v0.20:
 
-    0.20  11 Mar 2004
-	- made send_a_waypoint synonym for set_a_waypoint to be
-          consistent with LSI naming convention
-	- added functional get_waypoints and set_waypoints methods
-        - added GPS::Lowrance::Waypoints class for waypoints
-	- added set_plot_trail
-	- get_plot_trail is an autoloading method
-	- removed AUTOLOAD, made module an AutoLoader
-	- autoloaded get_* methods created in BEGIN statement instead
-	* fixed reversed x and y for get_plot_trail_origin and
-          get_plot_trail_deltas
-	- added set_plot_trail_origin and _set_plot_trail_deltas
-	- added GPX format to eg/extract-trail.pl
-	- requires GPS::Lowrance::Trail 0.40
-	- fixed typo in POD SYNOPSIS
-           (thanks to Mike Castle <dalgoda at ix.netcom.com>)
-	- added test cases for LSI restriction constants
-	- converted hardcoded LSI restrictions to constants
-	- additional comments in code and updates to documentation
-	- additional assertions
-	- DESTROY method disconnects
-	- added test cases for some functions
-	- added assertions to Geo::Coordinates::MercatorMeters
-	- added signed_long and signed_int conversion functions
-	- decoding of signed integers should now be machine independent
+    0.21  12 Mar 2004
+	* fixed bug with uploading plot trails
+	- added eg/upload-trail.pl file
+	- eg/renamed extract-trail.pl to download-trail.pl
+	- get_product_description is now cached
+	- added stubs for unimplemented functions
+	- added get_graphical_symbol to GPS::Lowrance::Screen
+	* changed syntax for calls to get_current_screen to
+	   GPS::Lowrance::Screen
+	- added get_graphical_symbol_info, get_number_of_graphical_symbols
+	* removed checksum from get_product_info (not needed)
+	- added missing module in REQUIREMENTS list in POD
+	- added support for preserving waypoint numbers and symbols
 
 DESCRIPTION
     This module provides a variety of higher-level methods for communicating
@@ -92,9 +80,7 @@ CAVEATS
     This is a beta version of the module, so there are bound to be some
     bugs. In the current form it is also far from complete.
 
-    This module was tested with "Win32::SerialPort", although it should use
-    "Device::SerialPort" on non-Windows platforms. However, this has not yet
-    been tested.
+    See the module documentation for a complete list of Known Issues.
 
   Compatability
     This module should work with all Lowrance and Eagle devices which
