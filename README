@@ -1,0 +1,70 @@
+NAME
+    GPS::Lowrance - Connect to Lowrance and Eagle GPS devices
+
+REQUIREMENTS
+    The following modules are required to use this module:
+
+      Carp::Assert
+      Parse::Binary::FixedFormat
+      GPS::Lowrance::LSI
+      GPS::Lowrance::Trail
+      Win32::SerialPort or Device::SerialPort
+
+    This module should work with Perl 5.6.x. It has been tested on Perl
+    5.8.2.
+
+  Installation
+    Installation is standard:
+
+      perl Makefile.PL
+      make
+      make test
+      make install
+
+    For Windows playforms, you may need to use "nmake" instead.
+
+SYNOPSIS
+      use GPS::Lowrance;
+      use GPS::Lowrace::Trail;
+
+      $gps = GPS::Lowrance->connect(
+                Device     => 'com1',
+                BaudRate   => 57600,
+              );
+
+      $trail = $gps->get_plot_trail( plot_trail_number => 0 );
+
+      $gps->disconnect;
+
+DESCRIPTION
+    This module provides a variety of higher-level methods for communicating
+    with Lowrance and Eagle GPS receivers.
+
+    This is an experimental module with only a partial implementation to
+    read data from the device.  It is documented, however.
+
+    More detailed information can be found in the POD.
+    
+CAVEATS
+    This is a beta version of the module, so there are bound to be some
+    bugs. In the current form it is also far from complete.
+
+    This module was tested with "Win32::SerialPort", although it should use
+    "Device::SerialPort" on non-Windows platforms. However, this has not yet
+    been tested.
+
+  Known Issues
+    The protocol uses little-endian values, and due to some quirks in the
+    decoding functions, they may not be converted properly on big-endian
+    machines.
+
+AUTHOR
+    Robert Rothenberg <rrwo at cpan.org>
+
+COPYRIGHT AND LICENSE
+    Copyright (C) 2004 by Robert Rothenberg <rrwo at cpan.org>.
+
+    This library is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself, either Perl version 5.8.2 or, at
+    your option, any later version of Perl 5 you may have available.
+

@@ -1,0 +1,14 @@
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         GPS-Lowrance
+version:      0.01
+version_from: lib/GPS/Lowrance.pm
+installdirs:  site
+requires:
+    Carp::Assert:                  0
+    GPS::Lowrance::LSI:            0.23
+    GPS::Lowrance::Trail:          0.21
+    Parse::Binary::FixedFormat:    0.02
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.17

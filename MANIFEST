@@ -1,0 +1,8 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+lib/Geo/Coordinates/MercatorMeters.pm
+lib/GPS/Lowrance.pm
+t/GPS-Lowrance.t
+META.yml                                 Module meta-data (added by MakeMaker)
