@@ -4,7 +4,7 @@ use 5.006;
 use strict;
 use warnings;
 
-use Carp::Assert;
+no Carp::Assert;
 use GD;
 use GPS::Lowrance 0.21;
 
@@ -22,7 +22,37 @@ our @EXPORT = qw(
   get_current_screen get_graphical_symbol
 );
 
-our $VERSION = '0.03';
+our $VERSION = '0.05';
+
+sub _bitmap_to_image {
+  my ($data, $width, $height, $blk_rgb, $gry_rgb) = @_;
+  
+  my $img = new GD::Image( $width, $height );
+
+  # It's tempting to use Graphics::ColorNames for "black" and "grey", but
+  # to load a module for just two colors seems pointless.
+
+  my $blk = $img->colorAllocate( @$blk_rgb );
+  my $gry = $img->colorAllocate( @$gry_rgb );
+
+  my ($x, $y) = (0, 0);
+  foreach my $byte (split //, $data) {
+    my $i   = unpack "C", $byte;
+    my $bit = 128;
+    while ($bit) {
+      my $on = ($i & $bit);
+      $img->setPixel( $x, $y, ($on)?$blk:$gry );
+      $bit = $bit >> 1;
+      $x ++;
+      if ($x==$width) {
+	$x = 0;
+	$y ++;
+	assert( $y <= $height ), if DEBUG;
+      }
+    }
+  }
+  return $img;
+}
 
 sub get_current_screen {
   my $gps = shift;
@@ -54,58 +84,42 @@ sub get_current_screen {
 
   assert( $size <= $info->{black_count} ), if DEBUG;
 
-  my $blk_plane = $gps->read_memory(
-     address          => $info->{black_address},
-     count            => $size,
-     cartridge_select => 1,
-     callback         => $callback,
-  );
+  my $blk_plane = "";
+
+  # We need to trap this because if there is an error reading memory,
+  # the GPS will lock up, and even the power button may not work.
+
+  eval {
+    $blk_plane = $gps->read_memory(
+      address          => $info->{black_address},
+      count            => $size,
+      cartridge_select => 1,
+      callback         => $callback,
+    );
+  };
 
   $gps->unfreeze_current_unit_screen;
 
-  my $img = _bitmap_to_image($blk_plane, $width, $height, $blk_rgb, $gry_rgb);
+  if (length($blk_plane)) {
+    my $img =
+      _bitmap_to_image($blk_plane, $width, $height, $blk_rgb, $gry_rgb);
 
-  if ($gps->get_screen_rotate_angle == 90 ) {
-    return $img->copyRotate270();
-  } elsif ($gps->get_screen_rotate_angle == 180 ) {
-    return $img->copyRotate180();
-  } elsif ($gps->get_screen_rotate_angle == 270 ) {
-    return $img->copyRotate90();
-  } else {
-    return $img;
-  }
-}
-
-
-sub _bitmap_to_image {
-  my ($data, $width, $height, $blk_rgb, $gry_rgb) = @_;
-  
-  my $img = new GD::Image( $width, $height );
-
-  # It's tempting to use Graphics::ColorNames for "black" and "grey", but
-  # to load a module for just two colors seems pointless.
-
-  my $blk = $img->colorAllocate( @$blk_rgb );
-  my $gry = $img->colorAllocate( @$gry_rgb );
-
-  my ($x, $y) = (0, 0);
-  foreach my $byte (split //, $data) {
-    my $i   = unpack "C", $byte;
-    my $bit = 128;
-    while ($bit) {
-      my $on = ($i & $bit);
-      $img->setPixel( $x, $y, ($on)?$blk:$gry );
-      $bit = $bit >> 1;
-      $x ++;
-      if ($x==$width) {
-	$x = 0;
-	$y ++;
-	assert( $y <= $height ), if DEBUG;
-      }
+    if ($gps->get_screen_rotate_angle == 90 ) {
+      return $img->copyRotate270();
+    } elsif ($gps->get_screen_rotate_angle == 180 ) {
+      return $img->copyRotate180();
+    } elsif ($gps->get_screen_rotate_angle == 270 ) {
+      return $img->copyRotate90();
+    } else {
+      return $img;
     }
+
+  } else {
+    return;
   }
-  return $img;
 }
+
+
 
 sub get_graphical_symbol {
   my $gps = shift;

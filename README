@@ -7,18 +7,19 @@ REQUIREMENTS
 
       Carp::Assert
       GPS::Lowrance::LSI
-      GPS::Lowrance::Trail
       Parse::Binary::FixedFormat
       Win32::SerialPort or Device::SerialPort
 
-    GPS::Lowrance::Trail requires these modules:
+    To extract trails or waypoints you will need the following
+    modues:
 
       Geo::Coordinates::DecimalDegrees
       Geo::Coordinates::UTM
       XML::Generator
+      GPS::Lowrance::Trail
 
-    If you want to use the screen capture function, you also need
-    the following module:
+    If you want to use the screen capture or icon download functions,
+    you also need the following module:
 
       GD
 
@@ -26,14 +27,24 @@ REQUIREMENTS
     5.8.2.
 
   Installation
-    Installation is standard:
+    Installation can be done using the traditional Makefile.PL or the
+    newer Build.PL methods.
+
+    Using Makefile.PL:
 
       perl Makefile.PL
       make
       make test
       make install
 
-    For Windows playforms, you may need to use "nmake" instead.
+    (On Windows platforms you should use nmake instead.)
+
+    Using Build.PL (if you have Module::Build installed):
+
+      perl Build.PL
+      perl Build
+      perl Build test
+      perl Build install    
 
 SYNOPSIS
       use GPS::Lowrance;
@@ -49,21 +60,28 @@ SYNOPSIS
       $gps->disconnect;
 
 REVISION HISTORY
-    Changes to this package since v0.20:
+    Changes to this package since v0.21:
 
-    0.21  12 Mar 2004
-	* fixed bug with uploading plot trails
-	- added eg/upload-trail.pl file
-	- eg/renamed extract-trail.pl to download-trail.pl
-	- get_product_description is now cached
-	- added stubs for unimplemented functions
-	- added get_graphical_symbol to GPS::Lowrance::Screen
-	* changed syntax for calls to get_current_screen to
-	   GPS::Lowrance::Screen
-	- added get_graphical_symbol_info, get_number_of_graphical_symbols
-	* removed checksum from get_product_info (not needed)
-	- added missing module in REQUIREMENTS list in POD
-	- added support for preserving waypoint numbers and symbols
+    0.30  Mon 29 Mar 2004
+	- assertions disabled
+	- MAX_BYTES uses GPS::Lowrance::LSI constant
+	- fix: added trapping in get_current_screen so that if a memory read
+	  fails, the GPS won't lock up
+	- incorporated wrappers in GPS::Lowrance for get_current_screen
+          and get_graphical_symbol from GPS::Lowrance::Screen
+        - minor reorganization of code in GPS::Lowrance::Screen
+	- uses Build.PL script to generate Makefile.PL and run installs
+        - reorganized AutoLoading in some routines
+	- GPS::Lowrance::Waypoint gives warnings about gdm16 format
+	- added set_plot_trail_mercator_meters and made set_plot_trail
+	  a wrapper which converts from decimal degrees
+	- added get_plot_trail_mercator_meters and made get_plot_trail
+          a wrapper which converts to decimal degrees
+	* uses GPS::Lowrance::Trail 0.41 which allows rounding to be disabled
+	* upload-trail and download trail use GPS::Lowrance::Trail 0.41	  
+	- modules that are not immediately required are not used
+
+
 
 DESCRIPTION
     This module provides a variety of higher-level methods for communicating
@@ -79,6 +97,10 @@ DESCRIPTION
 CAVEATS
     This is a beta version of the module, so there are bound to be some
     bugs. In the current form it is also far from complete.
+
+    I am also working with authors of other GPS::* modules to standard-
+    ize the interface and input/output formats.  There may well be
+    major changes in future versions.
 
     See the module documentation for a complete list of Known Issues.
 

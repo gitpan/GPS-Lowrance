@@ -6,9 +6,9 @@ use strict;
 use FileHandle;
 use Getopt::Long;
 use GPS::Lowrance 0.21;
-use GPS::Lowrance::Trail 0.40;
+use GPS::Lowrance::Trail 0.41;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 my %ALLOWED_FORMATS = (
   'gdm16'  => 'write_gdm16',
@@ -17,13 +17,17 @@ my %ALLOWED_FORMATS = (
   'gpx'    => 'write_gpx',
 );
 
-my ($Device, $BaudRate, $Filename, $TrailNo, $Format, $Quiet, $Help);
+my ($Device, $BaudRate, $Filename, $TrailNo, $Format, $Quiet, $Rounding,
+    $Help);
+
+$Rounding = 0;
 
 GetOptions(
   'device=s'   => \$Device,
   'baudrate=i' => \$BaudRate,
   'trail=i'    => \$TrailNo,
   'filename=s' => \$Filename,
+  'rounding=i' => \$Rounding,
   'format=s'   => \$Format,
   'quiet|q!'   => \$Quiet,
   'help|h!'    => \$Help,
@@ -98,6 +102,8 @@ my $Trail = $Gps->get_plot_trail(
 unless ($Quiet) {
   print STDERR "\n";
 }
+
+$Trail->rounding( $Rounding );
 
 $Trail->$WriteMethod( $Fh );
 

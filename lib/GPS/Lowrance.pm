@@ -14,12 +14,13 @@ BEGIN{
   eval "use $SerialModule;";
 }
 
-use Carp::Assert;
+no Carp::Assert;
 use Geo::Coordinates::MercatorMeters;
 use GPS::Lowrance::LSI 0.23;
-use GPS::Lowrance::Trail 0.40;
-use GPS::Lowrance::Waypoints;
 use Parse::Binary::FixedFormat;
+
+# use GPS::Lowrance::Trail 0.41;
+# use GPS::Lowrance::Waypoints;
 
 require Exporter;
 use AutoLoader qw(AUTOLOAD);
@@ -37,7 +38,7 @@ our %EXPORT_TAGS = (
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
-our $VERSION = '0.21';
+our $VERSION = '0.30';
 
 our $AUTOLOAD;
 
@@ -68,8 +69,8 @@ use constant RAW_BUFFER    => 1;        # flag: do not decode buffer
 
 # LSI constants
 
-use constant MAX_DELTAS    =>  40;      # max trail deltas to download
-use constant MAX_BYTES     => 256;      # max bytes to download
+use constant MAX_DELTAS    => 40;       # max trail deltas to download
+use constant MAX_BYTES     => GPS::Lowrance::LSI::MAX_BYTES;
 
 my %ALLOWED_PARAMS = map { $_ => 1, } (qw(
   device baudrate parity databits stopbits readbuffer writebuffer
@@ -298,6 +299,8 @@ BEGIN {
         qw( reserved:C checksum:C )
   ], NO_CACHE );
 
+  *login_to_nmea_serial_port  = *login_to_serial_port;
+
   *change_baud_rate           = *_unimplemented; # 0x010a
 
   *request_screen_pointer     = _make_method( 0x0301, undef, [
@@ -472,10 +475,13 @@ sub DESTROY {
   $self->disconnect;
 }
 
+
 1;
 __END__
 
 sub get_waypoints {
+  require GPS::Lowrance::Waypoints;
+
   my $self = shift;
   assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
 
@@ -489,7 +495,7 @@ sub get_waypoints {
 
   my $list_size = scalar @$list;
 
-  my $waypoints  = new GPS::Lowrance::Waypoints;
+  my $waypoints  = new GPS::Lowrance::Waypoints( rounding => 0 );
 
   foreach my $num (@$list) {
 
@@ -520,6 +526,8 @@ sub get_waypoints {
 }
 
 sub set_waypoints {
+  require GPS::Lowrance::Waypoints;
+
   my $self = shift;
   assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
 
@@ -568,69 +576,7 @@ sub set_waypoints {
 }
 
 
-sub get_plot_trail {
-  my $self = shift;
-  assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
-
-  if ($self->get_protocol_version < 1) {
-    die "this method requires protocol version 2.0";
-  }
-
-  my %input    = @_;
-
-  if ($self->get_num_of_plot_trails <= $input{plot_trail_number}) {
-    die "plot_trail_number too high";
-  }
-
-  my $callback = $input{callback} || sub { return; };
-  assert( ref($callback) eq "CODE" ), if DEBUG;
-
-  my $origin   = $self->get_plot_trail_origin( %input );
-
-  my ($origin_x, $origin_y, $delta_count) =
-    map { ( ( $origin->{$_} ) ) } (
-     qw( origin_x origin_y number_of_deltas ) );
-
-  my $trail = new GPS::Lowrance::Trail;
-  assert( UNIVERSAL::isa( $trail, "GPS::Lowrance::Trail" ) ), if DEBUG;
-
-  $trail->trail_num( 1 + $input{plot_trail_number} );
-
-  $trail->add_point( mercator_meters_to_degrees( $origin_y, $origin_x ) );
-
-  my $expected = $delta_count+1;
-
-  while ($delta_count) {
-
-    &{$callback}( $trail->size . "/" . $expected );
-
-    # LSI protocol says that no more than 40 deltas should be
-    # downloaded at a time
-
-    $input{number_of_deltas} =
-      ($delta_count > MAX_DELTAS) ? MAX_DELTAS : $delta_count;
-    $delta_count -= $input{number_of_deltas};
-
-    my $deltas = $self->get_plot_trail_deltas(%input);
-
-    die "unable to retrieve deltas",
-      unless ($deltas->{number_of_deltas} == $input{number_of_deltas});
-
-    for my $i (1 .. $input{number_of_deltas}) {
-      my ($x, $y) = map { ( ( $deltas->{$_."_$i"}||0) ) } (
-        qw( delta_x delta_y ) );
-      $origin_x += $x;
-      $origin_y += $y;
-      $trail->add_point( mercator_meters_to_degrees( $origin_y, $origin_x) );
-    }
-
-  }
- 
-  &{$callback}( $trail->size . "/" . $expected );
-  return $trail;
-}
-
-sub set_plot_trail {
+sub set_plot_trail_mercator_meters {
   my $self = shift;
   assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
 
@@ -643,26 +589,25 @@ sub set_plot_trail {
   assert( ref($callback) eq "CODE" ), if DEBUG;
 
   my $trail    = $input{plot_trail};
-  assert( UNIVERSAL::isa( $trail, "GPS::Lowrance::Trail" ) ), if DEBUG;
+  assert( ref($trail) eq "ARRAY" ), if DEBUG;
 
-  if ($self->get_num_of_plot_trails < $trail->trail_num) {
+  if ($self->get_num_of_plot_trails < $input{plot_trail_number}) {
     die "plot_trail_number too high";
-  } elsif ($trail->trail_num < 0) {
+  } elsif ($input{plot_trail_number} < 0) {
     die "invalid trail number";
   }
 
-  my $count = $trail->size;
+  my $count = scalar( @$trail );
 
   unless ($count) {
     die "cannot upload an empty trail";
   }
 
-  $trail->reset;
 
-  my $point = $trail->next;
+  my $point = shift @$trail;
   assert( defined $point ), if DEBUG;
 
-  my ($lat_m, $lon_m) = degrees_to_mercator_meters( @$point );
+  my ($lat_m, $lon_m) = @$point;
 
   my %args = (
     plot_trail_number => $trail->trail_num()-1,
@@ -691,10 +636,10 @@ sub set_plot_trail {
     
     my $delta = 1;
     while ($expected--) {
-      $point = $trail->next;
+      $point = shift @$trail;
       assert( defined $point ), if DEBUG;
 
-      my ($y, $x) = degrees_to_mercator_meters( @$point );
+      my ($y, $x) = @$point;
       my $dy = $y - $lat_m;
       my $dx = $x - $lon_m;
 
@@ -712,6 +657,137 @@ sub set_plot_trail {
   return;
 }
 
+sub set_plot_trail {
+  require GPS::Lowrance::Trail;
+
+  my $self = shift;
+  assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
+
+  if ($self->get_protocol_version < 1) {
+    die "this method requires protocol version 2.0";
+  }
+
+  my %input    = @_;
+
+  my $trail    = $input{plot_trail};
+  assert( UNIVERSAL::isa( $trail, "GPS::Lowrance::Trail" ) ), if DEBUG;
+
+  $input{plot_trail_number} = $trail->trail_num - 1;
+
+  my @raw_trail = ();
+
+  $trail->reset;
+  while (my $point = $trail->next) {
+    push @raw_trail, [ mercator_meters_to_degrees( @{$point}[0..1] ) ];
+  }
+  assert( scalar(@raw_trail) == $trail->size ), if DEBUG;
+
+  $input{plot_trail} = \@raw_trail;
+
+  return $self->set_plot_trail_mercator_meters( %input );
+}
+
+sub get_plot_trail_mercator_meters {
+  my $self = shift;
+  assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
+
+  if ($self->get_protocol_version < 1) {
+    die "this method requires protocol version 2.0";
+  }
+
+  my %input    = @_;
+
+  if ($self->get_num_of_plot_trails <= $input{plot_trail_number}) {
+    die "plot_trail_number too high";
+  }
+
+  my $callback = $input{callback} || sub { return; };
+  assert( ref($callback) eq "CODE" ), if DEBUG;
+
+  my $origin   = $self->get_plot_trail_origin( %input );
+
+  my ($origin_x, $origin_y, $delta_count) =
+    map { ( ( $origin->{$_} ) ) } (
+     qw( origin_x origin_y number_of_deltas ) );
+
+  my @trail = ( [ $origin_y, $origin_x ] );
+
+  my $expected = $delta_count+1;
+
+  while ($delta_count) {
+
+    &{$callback}( scalar(@trail) . "/" . $expected );
+
+    # LSI protocol says that no more than 40 deltas should be
+    # downloaded at a time
+
+    $input{number_of_deltas} =
+      ($delta_count > MAX_DELTAS) ? MAX_DELTAS : $delta_count;
+    $delta_count -= $input{number_of_deltas};
+
+    my $deltas = $self->get_plot_trail_deltas(%input);
+
+    die "unable to retrieve deltas",
+      unless ($deltas->{number_of_deltas} == $input{number_of_deltas});
+
+    for my $i (1 .. $input{number_of_deltas}) {
+      my ($x, $y) = map { ( ( $deltas->{$_."_$i"}||0) ) } (
+        qw( delta_x delta_y ) );
+      $origin_x += $x;
+      $origin_y += $y;
+      push @trail, [ $origin_y, $origin_x ];
+    }
+
+  }
+
+  &{$callback}( scalar(@trail) . "/" . $expected );
+  return \@trail;
+}
+
+sub get_plot_trail {
+  require GPS::Lowrance::Trail;
+
+  my $self = shift;
+  assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
+
+  my %input = @_;
+
+  my $raw_trail = $self->get_plot_trail_mercator_meters( %input );
+
+  if (defined $raw_trail) {
+
+    my $trail = new GPS::Lowrance::Trail(
+      rounding  => $input{rounding}||0,
+      trail_num => $input{plot_trail_number} + 1,
+    );
+    assert( UNIVERSAL::isa( $trail, "GPS::Lowrance::Trail" ) ), if DEBUG;
+
+    foreach my $pt (@$raw_trail) {
+      $trail->add_point( mercator_meters_to_degrees( @{$pt}[0..1] ),
+			 @{$pt}[2..-1] );
+    }
+    assert( $trail->size == scalar(@$raw_trail) ), if DEBUG;
+
+    return $trail;
+  } else {
+    return;
+  }
+}
+
+sub get_current_screen {
+  require GPS::Lowrance::Screen;
+
+  my $self = shift;
+  return GPS::Lowrance::Screen::get_current_screen($self, @_);
+}
+
+sub get_graphical_symbol {
+  require GPS::Lowrance::Screen;
+
+  my $self = shift;
+  return GPS::Lowrance::Screen::get_graphical_symbol($self, @_);
+}
+
 =head1 NAME
 
 GPS::Lowrance - Connect to Lowrance and Eagle GPS devices
@@ -721,34 +797,25 @@ GPS::Lowrance - Connect to Lowrance and Eagle GPS devices
 The following modules are required to use this module:
 
   Carp::Assert
-  GPS::Lowrance::LSI
-  GPS::Lowrance::Trail
+  GPS::Lowrance::LSI 0.23
   Parse::Binary::FixedFormat
   Win32::SerialPort or Device::SerialPort
 
-GPS::Lowrance::Trail requires these modules:
+If you will be using the L</get_plot_trails>, L</set_plot_trails>,
+L</set_waypoints> or L</get_waypoints> methods, then you will need the
+following modules:
 
+  GPS::Lowrance::Trail 0.41
   Geo::Coordinates::DecimalDegrees
   Geo::Coordinates::UTM
   XML::Generator
 
-If you want to use the screen capture function, you also need
-the following module:
+If you want to use the screen capture or icon download functions in
+C<GPS::Lowrance::Screen>, you also need the following module:
 
   GD
 
 This module should work with Perl 5.6.x. It has been tested on Perl 5.8.2.
-
-=head2 Installation
-
-Installation is standard:
-
-  perl Makefile.PL
-  make
-  make test
-  make install
-
-For Windows playforms, you may need to use C<nmake> instead.
 
 =head1 SYNOPSIS
 
@@ -1034,6 +1101,23 @@ This only works for devices that understand I<protocol version 2>
 See L</get_plot_trail>, which is a wrapper routine for downloading
 plot trails.
 
+=item get_plot_trail_mercator_meters
+
+  $array_ref = $gps->get_plot_trail_mercator_meters(
+     plot_trail_number => $num,
+     callback          => $code_ref,
+  );
+
+Retrieves the trail specified by C<$num> (which is zero-based) as an
+array reference of coordinates in mercator meters:
+
+  $array_ref = [ [ $lat_m_1, $lon_m_1 ], [ $lat_m_2, $lon_m_2 ], ... ];
+
+It uses L</get_plot_trail_origin> and L</get_plot_trail_deltas> to
+retrieve plot trails, and convert the data to Latitude and Logitude.
+Thus it only works for devices that understand I<protocol version 2>
+(L</get_protocol_version> == 1).
+
 =item get_plot_trail
 
   $trail = $gps->get_plot_trail(
@@ -1051,10 +1135,7 @@ Note the following:
 Coordinates are converted to decimal degrees from the native mercator
 meter format.  Note that there may be rounding errors.
 
-It uses L</get_plot_trail_origin> and L</get_plot_trail_deltas> to
-retrieve plot trails, and convert the data to Latitude and Logitude.
-Thus it only works for devices that understand I<protocol version 2>
-(L</get_protocol_version> == 1).
+It uses L</get_plot_trail_mercator_meters>.
 
 =item set_plot_trail_origin
 
@@ -1100,6 +1181,22 @@ This only works for devices that understand I<protocol version 2>
 See L</set_plot_trail>, which is a wrapper function to handle
 uploading trails.
 
+=item set_plot_trail_mercator_meters
+
+  $gps->set_plot_trail_mercator_meters(
+    plot_trail_number => $num,
+    plot_trail => $array_ref,
+    callback   => $coderef,
+  );
+
+Sets plot trail C<$num> to the one specified by C<$trail>.  C<$trail> is the
+same format returned by L</get_plot_trail_mercator_meters>.
+
+It uses L</set_plot_trail_origin> and L</set_plot_trail_deltas> to
+upload plot trails, and convert the data from Latitude and Logitude.
+Thus it only works for devices that understand I<protocol version 2>
+(L</get_protocol_version> == 1).
+
 =item set_plot_trail
 
   $trail = new GPS::Lowrance::Trail;
@@ -1113,15 +1210,7 @@ uploading trails.
 
 Sets a plot trail to the one specified by C<$trail>.
 
-Coordinates are converted from decimal degrees to the native mercator
-meter format.  Note that there may be rounding errors.
-
-It uses L</set_plot_trail_origin> and L</set_plot_trail_deltas> to
-upload plot trails, and convert the data from Latitude and Logitude.
-Thus it only works for devices that understand I<protocol version 2>
-(L</get_protocol_version> == 1).
-
-See also L</get_plot_trail>.
+It uses L</set_plot_trail_mercator_meters>.
 
 =item get_a_waypoint
 
@@ -1199,6 +1288,31 @@ Returns information about the icon symbol:
   bytes_per_symbol       = amount of data
 
 See the C<get_graphical_symbol> function in C<GPS::Lowrance::Screen>.
+
+=item get_current_screen
+
+  $img = $gps->get_current_screen(
+    black_rgb => [0x00, 0x00, 0x00],
+    grey_rgb  => [0x80, 0x80, 0x80],
+    callback  => $coderef
+  );
+
+Returns a C<GD::Image> object of the current screen on the GPS.
+
+The C<black_rgb> and C<grey_rgb> values are optional.  They specify
+the screen colors used.  Default values are shown in the example.
+
+=item get_icon_graphic
+
+  $img = $gps->get_icon_graphic(
+    icon_symbol_index => $icon_num,
+    black_rgb => [0x00, 0x00, 0x00],
+    grey_rgb  => [0x80, 0x80, 0x80],
+    callback  => $coderef
+  );
+
+Returns a C<GD::Image> object of the icon specified by
+C<icon_symbol_index>.  
 
 =item disconnect
 

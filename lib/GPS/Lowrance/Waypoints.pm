@@ -4,8 +4,8 @@ use 5.006;
 use strict;
 use warnings;
 
-use Carp::Assert;
-use GPS::Lowrance::Trail 0.40;
+no Carp::Assert;
+use GPS::Lowrance::Trail 0.41;
 use XML::Generator;
 
 # require Exporter;
@@ -20,7 +20,7 @@ our @ISA = qw(GPS::Lowrance::Trail);
 # our @EXPORT = qw(
 # );
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 sub new {
   my $class = shift;
@@ -59,6 +59,22 @@ sub add_point {
 
 sub trail_num {
   return 0;
+}
+
+sub read_gdm16 {
+    my $self = shift;
+    assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
+
+    warn "gdm16 exports waypoints at latlon files";
+    $self->SUPER::read_gdm16( @_ );
+}
+
+sub write_gdm16 {
+    my $self = shift;
+    assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
+
+    warn "gdm16 exports waypoints at latlon files";
+    $self->SUPER::write_gdm16( @_ );
 }
 
 sub write_gpx {
@@ -132,6 +148,8 @@ It is included with the C<GPS::Lowrance> distribution.
 
 This module is a subclass of C<GPS::Lowrance::Trail>.  It shares the same
 methods with exceptions outlined below.
+
+Note that GDM16 usually imports and exports waypoints as Lat/Lon files.
 
 =head2 Methods
 

@@ -6,9 +6,9 @@ use strict;
 use FileHandle;
 use Getopt::Long;
 use GPS::Lowrance 0.21;
-use GPS::Lowrance::Trail 0.40;
+use GPS::Lowrance::Trail 0.41;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 my %ALLOWED_FORMATS = (
   'gdm16'  => 'read_gdm16',
@@ -16,7 +16,10 @@ my %ALLOWED_FORMATS = (
   'utm'    => 'read_utm',
 );
 
-my ($Device, $BaudRate, $Filename, $TrailNo, $Format, $Quiet, $Help);
+my ($Device, $BaudRate, $Filename, $TrailNo, $Format, $Quiet, $Rounding,
+    $Help);
+
+$Rounding = 0;
 
 GetOptions(
   'device=s'   => \$Device,
@@ -24,6 +27,7 @@ GetOptions(
   'trail=i'    => \$TrailNo,
   'filename=s' => \$Filename,
   'format=s'   => \$Format,
+  'rounding=i' => \$Rounding,
   'quiet|q!'   => \$Quiet,
   'help|h!'    => \$Help,
 );
@@ -89,7 +93,7 @@ sub status {
   }
 }
 
-my $Trail = new GPS::Lowrance::Trail;
+my $Trail = new GPS::Lowrance::Trail( rounding => $Rounding );
 
 $Trail->$ReadMethod( $Fh );
 

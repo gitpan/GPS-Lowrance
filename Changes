@@ -1,6 +1,25 @@
 Revision history for Perl extension GPS::Lowrance. (Note: Changes that
 are not backwards compatible are marked with an asterisk, "*".)
 
+0.30  Mon 29 Mar 2004
+	- assertions disabled
+	- MAX_BYTES uses GPS::Lowrance::LSI constant
+	- fix: added trapping in get_current_screen so that if a memory read
+	  fails, the GPS won't lock up
+	- incorporated wrappers in GPS::Lowrance for get_current_screen
+          and get_graphical_symbol from GPS::Lowrance::Screen
+        - minor reorganization of code in GPS::Lowrance::Screen
+	- uses Build.PL script to generate Makefile.PL and run installs
+        - reorganized AutoLoading in some routines
+	- GPS::Lowrance::Waypoint gives warnings about gdm16 format
+	- added set_plot_trail_mercator_meters and made set_plot_trail
+	  a wrapper which converts from decimal degrees
+	- added get_plot_trail_mercator_meters and made get_plot_trail
+          a wrapper which converts to decimal degrees
+	* uses GPS::Lowrance::Trail 0.41 which allows rounding to be disabled
+	* upload-trail and download trail use GPS::Lowrance::Trail 0.41	  
+	- modules that are not immediately required are not used
+
 0.21  12 Mar 2004
 	* fixed bug with uploading plot trails
 	- added eg/upload-trail.pl file
@@ -9,7 +28,7 @@ are not backwards compatible are marked with an asterisk, "*".)
 	- added stubs for unimplemented functions
 	- added get_graphical_symbol to GPS::Lowrance::Screen
 	* changed syntax for calls to get_current_screen to
-	   GPS::Lowrance::Screen
+	   GPS::Lowrance::Screen to use hashes
 	- added get_graphical_symbol_info, get_number_of_graphical_symbols
 	* removed checksum from get_product_info (not needed)
 	- added missing module in REQUIREMENTS list in POD

@@ -48,10 +48,50 @@ my $gps = GPS::Lowrance->connect(
             retrycount => 0,
           );
 
+$gps->login_to_serial_port;
+
+sleep(1);
+
 my $info = $gps->get_product_info;
 print STDERR Data::Dumper->Dump([$info],['info']);
 
-$gps->login_to_serial_port;
+my $info = $gps->get_product_info;
+
+sleep(1);
+
+# $gps->unfreeze_current_unit_screen;
+exit 0;
+
+use GD;
+
+$info = $gps->get_number_of_graphical_symbols;
+print STDERR Data::Dumper->Dump([$info],['info']);
+
+$info = $gps->get_graphical_symbol_info( icon_symbol_index => 14, );
+print STDERR Data::Dumper->Dump([$info],['info']);
+
+my $img = $gps->get_graphical_symbol( icon_symbol_index => 14, );
+
+my $fo = new FileHandle ">foo.png";
+binmode $fo; print $fo $img->png; $fo->close;
+
+
+$img = $gps->get_current_screen();
+
+$fo = new FileHandle ">bar.png";
+binmode $fo; print $fo $img->png; $fo->close;
+
+$gps->unfreeze_current_unit_screen;
+
+$gps->disconnect;
+
+exit 0;
+
+use GPS::Lowrance::Trail;
+
+my $trail = $gps->get_plot_trail( plot_trail_number => 1,
+);
+$trail->write_latlon(\*STDERR);
 
 # print STDERR $gps->get_product_id, "\n";
 
