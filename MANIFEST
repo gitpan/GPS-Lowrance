@@ -4,5 +4,9 @@ MANIFEST
 README
 lib/Geo/Coordinates/MercatorMeters.pm
 lib/GPS/Lowrance.pm
+lib/GPS/Lowrance/Screen.pm
 t/GPS-Lowrance.t
-META.yml                                 Module meta-data (added by MakeMaker)
+t/Geo-Coordinates-MercaterMeters.t
+eg/extract-trail.pl
+eg/capture-screen.pl
+META.yml

@@ -2,13 +2,24 @@ NAME
     GPS::Lowrance - Connect to Lowrance and Eagle GPS devices
 
 REQUIREMENTS
-    The following modules are required to use this module:
+    The following non-standard modules are required to use this
+    module:
 
       Carp::Assert
-      Parse::Binary::FixedFormat
       GPS::Lowrance::LSI
       GPS::Lowrance::Trail
+      Parse::Binary::FixedFormat
       Win32::SerialPort or Device::SerialPort
+
+    GPS::Lowrance::Trail requires these modules:
+
+      Geo::Coordinates::DecimalDegrees
+      Geo::Coordinates::UTM
+
+    If you want to use the screen capture function, you also need
+    the following module:
+
+      GD
 
     This module should work with Perl 5.6.x. It has been tested on Perl
     5.8.2.
@@ -36,6 +47,24 @@ SYNOPSIS
 
       $gps->disconnect;
 
+REVISION HISTORY
+    Changes to this package since v0.01:
+
+    0.10  5 Mar 2004
+	- added callbacks to read_memory and get_plot_trail
+	- various changes to POD
+	- added gps_to_unix_time and unix_to_gps_time functions
+	- exports functions from Geo::Coordinates::MercatorMeters
+	- added get_number_of_icons method
+	- added get_a_waypoint and set_a_waypoint methods
+	- added capture-screen.pl example file
+	- added GPS::Lowrance::Screen module to extract screen
+	- added test case for MercatorMeters.pm to MANIFEST
+	- added extract-trail.pl example file
+	* get_num_of_plottrails renamed to get_num_of_plot_trails for
+	  consistency with other names
+	- minor changes in POD formatting
+
 DESCRIPTION
     This module provides a variety of higher-level methods for communicating
     with Lowrance and Eagle GPS receivers.
@@ -44,6 +73,8 @@ DESCRIPTION
     read data from the device.  It is documented, however.
 
     More detailed information can be found in the POD.
+
+    Examples can be found in the "eg" directory in this package.
     
 CAVEATS
     This is a beta version of the module, so there are bound to be some

@@ -17,27 +17,40 @@ BEGIN{
 use Carp::Assert;
 use Geo::Coordinates::MercatorMeters;
 use GPS::Lowrance::LSI 0.23;
-use GPS::Lowrance::Trail 0.21;
+use GPS::Lowrance::Trail 0.30;
 use Parse::Binary::FixedFormat;
 
-# require Exporter;
+require Exporter;
 # use AutoLoader qw(AUTOLOAD);
 
-# our @ISA = qw(Exporter);
+our @ISA = qw(Exporter);
 
-# our %EXPORT_TAGS = ( 'all' => [ qw(
-	
-# ) ] );
+our @EXPORT = (
+  @Geo::Coordinates::MercatorMeters::EXPORT,
+  qw( gps_to_unix_time unix_to_gps_time )
+);
 
-# our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
+our %EXPORT_TAGS = ( 'all' => [ @EXPORT ] );
 
-# our @EXPORT = qw(
-	
-# );
+our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
-our $VERSION = '0.01';
+
+our $VERSION = '0.10';
 
 our $AUTOLOAD;
+
+use constant GPS_DATE_OFFSET => 694242000;
+
+sub gps_to_unix_time {
+  my $time = shift;
+  return $time + GPS_DATE_OFFSET;
+}
+
+sub unix_to_gps_time {
+  my $time = shift;
+  assert( $time >= GPS_DATE_OFFSET ), if DEBUG;
+  return $time - GPS_DATE_OFFSET;
+}
 
 use constant BUFF_READ_SZ  => 1024;
 use constant BUFF_WRITE_SZ => 1024;
@@ -209,27 +222,46 @@ BEGIN {
   *unfreeze_current_unit_screen = _make_method( 0x0302, undef, undef,
      NO_CACHE );
 
-  *get_icon_symbol            = _make_method( 0x0309, [
+  *get_a_waypoint               = _make_method( 0x0303, [
+        qw( waypoint_number:v ) ], [
+        qw( reserved:C waypoint_number:v status:C icon_symbol:C
+	    latitude:l longitude:l name:A13 date:V )
+  ], NO_CACHE );
+
+  *set_a_waypoint               = _make_method( 0x0304, [
+        qw( waypoint_number:v status:C icon_symbol:C
+	    latitude:l longitude:l name:A13 date:V ) ], undef,
+     NO_CACHE );
+
+  # Note: GPS dates are the number of seconds since 00:00 Jan 1,
+  # 1992. So take the GPS date and add 694242000 to convert to Unix
+  # time.
+
+  *get_number_of_icons          = _make_method( 0x0308, undef, [
+        qw( reserved:C number_of_icons:v )
+  ], NO_CACHE );
+
+  *get_icon_symbol              = _make_method( 0x0309, [
         qw( icon_number:v ) ], [
         qw( reserved:C icon_number:v latitude:l longitude:l icon_symbol:C )
   ], NO_CACHE );
 
-  *get_product_info           = _make_method( 0x030e, undef, [
+  *get_product_info             = _make_method( 0x030e, undef, [
 	qw( reserved:C product_id:v protocol_version:v
 	    screen_type:v screen_width:v screen_height:v
 	    num_of_waypoints:v num_of_icons:v num_of_routes:v
             num_of_waypoints_per_route:v
-	    num_of_plottrails:C num_of_icon_symbols:C screen_rotate_angle:C
+	    num_of_plot_trails:C num_of_icon_symbols:C screen_rotate_angle:C
 	    run_time:V checksum:C )
   ], CACHE );
 
-  *get_plot_trail_origin      = _make_method( 0x0312, [
+  *get_plot_trail_origin         = _make_method( 0x0312, [
         qw( plot_trail_number:C ) ], [
         qw( reserved:C plot_trail_number:C
 	  origin_x:l origin_y:l number_of_deltas:v )
   ], NO_CACHE );
 
-  *get_plot_trail_deltas      = _make_method( 0x0313, [
+  *get_plot_trail_deltas         = _make_method( 0x0313, [
         qw( plot_trail_number:C number_of_deltas:v ) ], [
         ( qw( reserved:C plot_trail_number:C number_of_deltas:v ),
           (map { ("delta_x_$_:s", "delta_y_$_:s",) } (1..40) ) )
@@ -244,10 +276,15 @@ sub read_memory {
 
   my %input = @_;
 
-  my $count = $input{count} || 0;
-  my $data  = "";
+  my $callback = $input{callback} || sub { return; };
+  my $expected = $input{count}    || 0;
+
+  my $count     = $expected;
+  my $data      = "";
 
   while ($count) {
+    &{$callback}( length($data) . "/" . $expected );
+
     $input{count}    = ($count>256) ? 256 : $count;
     $count          -= $input{count};
 
@@ -260,15 +297,30 @@ sub read_memory {
     $input{address} += $input{count};
   }
 
+  &{$callback}( length($data) . "/" . $expected );
   return $data;
+}
+
+sub get_waypoints {
+  my $self = shift;
+  assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
+
+}
+
+sub set_waypoints {
+  my $self = shift;
+  assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
+
 }
 
 sub get_plot_trail {
   my $self = shift;
   assert( UNIVERSAL::isa( $self, __PACKAGE__ ) ), if DEBUG;
 
-  my %input  = @_;
-  my $origin = $self->get_plot_trail_origin( %input );
+  my %input    = @_;
+  my $callback = $input{callback} || sub { return; };
+
+  my $origin   = $self->get_plot_trail_origin( %input );
 
   my ($origin_x, $origin_y, $delta_count) =
     map { ( $origin->{$_} ) } (
@@ -279,7 +331,12 @@ sub get_plot_trail {
   $trail->trail_num( 1 + $input{plot_trail_number} );
   $trail->add_point( mercator_meters_to_degrees( $origin_x, $origin_y ) );
 
+  my $expected = $delta_count+1;
+
   while ($delta_count) {
+
+    &{$callback}( $trail->size . "/" . $expected );
+
     $input{number_of_deltas} = ($delta_count > 40) ? 40 : $delta_count;
     $delta_count -= $input{number_of_deltas};
 
@@ -297,7 +354,8 @@ sub get_plot_trail {
     }
 
   }
-
+ 
+  &{$callback}( $trail->size . "/" . $expected );
   return $trail;
 }
 
@@ -336,10 +394,20 @@ GPS::Lowrance - Connect to Lowrance and Eagle GPS devices
 The following modules are required to use this module:
 
   Carp::Assert
-  Parse::Binary::FixedFormat
   GPS::Lowrance::LSI
   GPS::Lowrance::Trail
+  Parse::Binary::FixedFormat
   Win32::SerialPort or Device::SerialPort
+
+GPS::Lowrance::Trail requires these modules:
+
+  Geo::Coordinates::DecimalDegrees
+  Geo::Coordinates::UTM
+
+If you want to use the screen capture function, you also need
+the following module:
+
+  GD
 
 This module should work with Perl 5.6.x. It has been tested on Perl 5.8.2.
 
@@ -371,9 +439,10 @@ For Windows playforms, you may need to use C<nmake> instead.
 =head1 DESCRIPTION
 
 This module provides a variety of higher-level methods for
-communicating with Lowrance and Eagle GPS receivers.
+communicating with Lowrance and Eagle GPS receivers.  It also provides
+some utility functions for converting data.
 
-=head1 METHODS
+=head2 Methods
 
 =over
 
@@ -494,7 +563,7 @@ Returns the maximum number of waypoints that a route can contain.
 
 The value is based on the original call to L</get_product_information>.
 
-=item get_num_of_plottrails
+=item get_num_of_plot_trails
 
   $num = $gps->get_num_of_plottrails;
 
@@ -556,11 +625,29 @@ C<$cart> is either 1 or 2.
   $data = $gps->read_memory_location(
      address          => $addr,
      count            => $size,
-     cartridge_select => $cart );
+     cartridge_select => $cart,
+     callback         => $coderef,     # optional
+  );
 
 Reads C<$size> bytes from the memory location in cartridge C<$cart>.
 
 C<$cart> is either 1 or 2.
+
+The C<$coderef> refers to a subroutine that is called for each block
+of memory read.  It can be used to display the status (which is passed
+to it in the form of a string "total_bytes_read/total_requested").
+For example,
+
+  $data = $gps->read_memory_location(
+     address          => 123456,
+     count            => 2800,
+     cartridge_select => 1,
+     callback         =>
+       sub {
+        my $status = shift || "0/0";
+        print STDERR $status, "\r";
+       },
+  );
 
 =item login_to_serial_port
 
@@ -570,8 +657,11 @@ C<$cart> is either 1 or 2.
 
   $hash_ref = $gps->request_screen_pointer;
 
-Freezes the GPS display for downloading and returns pointers.  TheGPS will
+Freezes the GPS display for downloading and returns pointers.  The GPS will
 be locked until there is a call to L</unfreeze_current_unit_screen>.
+
+The C<GPS::Lowrance::Screen> module provides a wrapper routine to extract
+the current screen.
 
 =item unfreeze_current_unit_screen
 
@@ -581,10 +671,21 @@ Called to unlock the GPS display.
 
 =item get_plot_trail_origin
 
+Note that returned values are in mercator meters and must be
+converted. (See L<Geo::Coordinates::MercatorMeters> for conversion
+routines.)
+
 This only works for devices that understand I<protocol version 2>
 (L</get_protocol_version> == 1).
 
 =item get_plot_trail_deltas
+
+The protocol specifies that no more than 40 deltas may be requested at
+a time.
+
+Note that returned values are in mercator meters and must be
+converted. (See L<Geo::Coordinates::MercatorMeters> for conversion
+routines.)
 
 This only works for devices that understand I<protocol version 2>
 (L</get_protocol_version> == 1).
@@ -596,16 +697,84 @@ This only works for devices that understand I<protocol version 2>
 Retrieves the trail specified by C<$num> (which is zero-based) as a
 C<GPS::Lowrance::Trail> object.
 
+Coordinates are converted to degrees.
+
 It uses L</get_plot_trail_origin> and L</get_plot_trail_deltas> to
 retrieve plot trails, and convert the data to Latitude and Logitude.
 Thus it only works for devices that understand I<protocol version 2>
 (L</get_protocol_version> == 1).
+
+=item get_a_waypoint
+
+  $waypoint = $gps->get_a_waypoint( waypoint_number => $num );
+
+Retrieves a waypoint specified by C<$num> (which is zero-based) as a
+hash reference wih the following information:
+
+  waypoint_number
+  latitude (in Mercator Meters)
+  longitude (in Mercator Meters)
+  name (up to 8 or 13 characters long)
+  status (0 = invalid, 1 = valid)
+  date (number of seconds since Jan. 1, 1992)
+
+The L</mercator_meters_to_degrees> and L</gps_to_unix_time> functions
+will convert latitude and lognitude and date fields.
+
+=item set_a_waypoint
+
+  $gps->set_a_waypoint( %waypoint );
+
+Sets a waypoint, using the same structure that is returned by
+L</get_waypoint>.
+
+=item get_waypoints
+
+Stub routine for a function to download waypoints. Not yet implemented.
+
+=item set_waypoints
+
+Stub routine for a function to upload waypoints. Not yet implemented.
 
 =item disconnect
 
   $gps->disconnect;
 
 Disconnects the serial connection.
+
+=back
+
+=head2 Functions
+
+The following functions are exported by default:
+
+=over
+
+=item gps_to_unix_time
+
+  my $time = gps_to_unix_time( $waypoint->{date} );
+
+Converts a GPS date (such as from a waypoint) to a Unix date.
+
+=item unix_to_gps_time
+
+  $waypoint->{date} = unix_to_gps_time( time )
+
+Converts Unix date to a GPS date.
+
+=item mercator_meters_to_degrees
+
+  ($lat, $lon) = mercator_meters_to_degrees( $lat_m, $lon_m );
+
+Convert mercator meters to decimal degrees.  This function is
+imported from L<Geo::Coordinates::MercatorMeters>.
+
+=item degrees_to_mercator_meters
+
+  ($lat_m, $lon_m) = degrees_to_mercator_meters( $lat, $lon );
+
+Convert decimal degrees to mercator meters.  This function is
+imported from L<Geo::Coordinates::MercatorMeters>.
 
 =back
 
@@ -636,11 +805,11 @@ return C<undef> after several retries.
 =head1 SEE ALSO
 
 The Lowrance Serial Interface (LSI) 100 Protocol is described in a
-document available on the L<Lowrance|http://www.lowrance.com> or
-L<Eagle|http://www.eaglegps.com> web sites, such as at
-L<http://www.lowrance.com/Software/CyberCom_LSI100/cybercom_lsi100.asp>
-or L<http://www.eaglegps.com/Downloads/Software/CyberCom/default.htm>.
-(Note that the specific URLs are subject to change.)
+document available on the Lowrance  or Eagle web sites:
+
+  http://www.lowrance.com/Software/CyberCom_LSI100/cybercom_lsi100.asp
+
+  http://www.eaglegps.com/Downloads/Software/CyberCom/default.htm
 
 A low-level implementation is available in
 
@@ -651,6 +820,7 @@ A low-level implementation is available in
 There are other Perl modules to communicate with different GPS brands:
 
   GPS::Garmin
+
   GPS::Magellan
 
 =head1 AUTHOR

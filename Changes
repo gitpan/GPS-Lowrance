@@ -1,7 +1,21 @@
-Revision history for Perl extension GPS::Lowrance.
+Revision history for Perl extension GPS::Lowrance. (Note: Changes that
+are not backwards compatible are marked with an asterisk, "*".)
 
+0.10  5 Mar 2004
+	- added callbacks to read_memory and get_plot_trail
+	- various changes to POD
+	- added gps_to_unix_time and unix_to_gps_time functions
+	- exports functions from Geo::Coordinates::MercatorMeters
+	- added get_number_of_icons method
+	- added get_waypoint and set_waypoint methods
+	- added capture-screen.pl example file
+	- added GPS::Lowrance::Screen module to extract screen
+	- added test case for MercatorMeters.pm to MANIFEST
+	- added extract-trail.pl example file
+	* get_num_of_plottrails renamed to get_num_of_plot_trails for
+	  consistency with other names
+	- minor changes in POD formatting
 
 0.01  3 Mar 2004
 	- original version; created by h2xs 1.23 with options
 		-n GPS::Lowrance -v 0.01 -X
-

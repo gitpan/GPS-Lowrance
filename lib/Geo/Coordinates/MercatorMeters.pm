@@ -18,7 +18,7 @@ our @EXPORT = qw(
   mercator_meters_to_degrees degrees_to_mercator_meters
 );
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use POSIX qw( atan exp tan );
 
@@ -71,13 +71,14 @@ These formulas are required for conversions to use the Lowrance Serial
 Interface Protocol in the C<GPS::Lowrance> module.
 
 These functions and the Lowrance Serial Interface (LSI) Protocol is
-described in a document available on the
-L<Lowrance|http://www.lowrance.com> or L<Eagle|http://www.eaglegps.com>
+described in a document available on the Lowrance
+(L<http://www.lowrance.com>) or Eagle (L<http://www.eaglegps.com>)
 web sites.
 
 For other coordinate conversions, see these modules:
 
   Geo::Coordinates::DecimalDegrees
+
   Geo::Coordinates::UTM
 
 =head1 AUTHOR

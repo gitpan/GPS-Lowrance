@@ -1,13 +1,16 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         GPS-Lowrance
-version:      0.01
+version:      0.10
 version_from: lib/GPS/Lowrance.pm
 installdirs:  site
 requires:
     Carp::Assert:                  0
+    GD:                            0
+    Geo::Coordinates::DecimalDegrees: 0
+    Geo::Coordinates::UTM:         0.02
     GPS::Lowrance::LSI:            0.23
-    GPS::Lowrance::Trail:          0.21
+    GPS::Lowrance::Trail:          0.3
     Parse::Binary::FixedFormat:    0.02
 
 distribution_type: module
