@@ -5,8 +5,8 @@ use strict;
 use warnings;
 
 no Carp::Assert;
-use GPS::Lowrance::Trail 0.41;
-use XML::Generator;
+use GPS::Lowrance::Trail 0.42;
+use XML::Generator qw();
 
 # require Exporter;
 # use AutoLoader qw(AUTOLOAD);
@@ -20,7 +20,7 @@ our @ISA = qw(GPS::Lowrance::Trail);
 # our @EXPORT = qw(
 # );
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 sub new {
   my $class = shift;

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: GPS-Lowrance
-version: 0.30
+version: 0.31
 author:
   - Robert Rothenberg <rrwo at cpan.org>
 abstract: Connect to Lowrance and Eagle GPS devices
@@ -13,7 +13,8 @@ requires:
 recommends:
   Device::SerialPort: 0
   GD: 0
-  GPS::Lowrance::Trail: 0.41
+  GD::Convert: 0
+  GPS::Lowrance::Trail: 0.42
   Geo::Coordinates::DecimalDegrees: 0
   Geo::Coordinates::UTM: 0
   Win32::SerialPort: 0

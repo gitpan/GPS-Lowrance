@@ -1,6 +1,10 @@
 Revision history for Perl extension GPS::Lowrance. (Note: Changes that
 are not backwards compatible are marked with an asterisk, "*".)
 
+0.31  Fri 16 Apr 2004
+	- GD::Convert is a recommended module
+	- importing nothing from XML::Generator in GPS::Lowrance::Waypoints
+
 0.30  Mon 29 Mar 2004
 	- assertions disabled
 	- MAX_BYTES uses GPS::Lowrance::LSI constant

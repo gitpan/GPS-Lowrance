@@ -38,7 +38,7 @@ our %EXPORT_TAGS = (
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
-our $VERSION = '0.30';
+our $VERSION = '0.31';
 
 our $AUTOLOAD;
 

@@ -59,30 +59,6 @@ SYNOPSIS
 
       $gps->disconnect;
 
-REVISION HISTORY
-    Changes to this package since v0.21:
-
-    0.30  Mon 29 Mar 2004
-	- assertions disabled
-	- MAX_BYTES uses GPS::Lowrance::LSI constant
-	- fix: added trapping in get_current_screen so that if a memory read
-	  fails, the GPS won't lock up
-	- incorporated wrappers in GPS::Lowrance for get_current_screen
-          and get_graphical_symbol from GPS::Lowrance::Screen
-        - minor reorganization of code in GPS::Lowrance::Screen
-	- uses Build.PL script to generate Makefile.PL and run installs
-        - reorganized AutoLoading in some routines
-	- GPS::Lowrance::Waypoint gives warnings about gdm16 format
-	- added set_plot_trail_mercator_meters and made set_plot_trail
-	  a wrapper which converts from decimal degrees
-	- added get_plot_trail_mercator_meters and made get_plot_trail
-          a wrapper which converts to decimal degrees
-	* uses GPS::Lowrance::Trail 0.41 which allows rounding to be disabled
-	* upload-trail and download trail use GPS::Lowrance::Trail 0.41	  
-	- modules that are not immediately required are not used
-
-
-
 DESCRIPTION
     This module provides a variety of higher-level methods for communicating
     with Lowrance and Eagle GPS receivers.
@@ -94,6 +70,16 @@ DESCRIPTION
 
     Examples can be found in the "eg" directory in this package.
     
+REVISION HISTORY
+    Changes to this package since v0.30:
+
+    0.31  Fri 16 Apr 2004
+	- GD::Convert is a recommended module
+	- importing nothing from XML::Generator in GPS::Lowrance::Waypoints
+
+    A detailed revision history is in the Changes file included with
+    this distribution.
+
 CAVEATS
     This is a beta version of the module, so there are bound to be some
     bugs. In the current form it is also far from complete.

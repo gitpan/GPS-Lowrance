@@ -20,10 +20,11 @@ my $build = Module::Build->new
      },
      recommends => {
        'GD'                         => 0,
+       'GD::Convert'                => 0,
        'Geo::Coordinates::UTM'      => 0,
        'Geo::Coordinates::DecimalDegrees' => 0,
        'XML::Generator'             => 0,
-       'GPS::Lowrance::Trail'       => 0.41,
+       'GPS::Lowrance::Trail'       => 0.42,
        'Win32::SerialPort'          => 0,
        'Device::SerialPort'         => 0,
      },
