@@ -22,6 +22,8 @@ our $VERSION = '0.02';
 
 use POSIX qw( atan exp tan );
 
+use Carp::Assert;
+
 use constant DEG_TO_RAD => 0.017453292519943296;
 use constant RAD_TO_DEG => 57.295779513082322;
 use constant PI         => 3.14159267;
@@ -32,12 +34,20 @@ sub mercator_meters_to_degrees {
   my ($lat_m, $lon_m) = @_;
   my $lat = RAD_TO_DEG * ( (2 * atan( exp( $lat_m / MAGIC_NUM ) ) ) - (PI/2) );
   my $lon = RAD_TO_DEG * ($lon_m / MAGIC_NUM);
+
+  assert( ($lat>=-90) && ($lat<=90) ), if DEBUG;
+  assert( ($lon>=-90) && ($lon<=90) ), if DEBUG;
+
   return ($lat, $lon);
 }
 
 sub degrees_to_mercator_meters {
   no integer;
   my ($lat, $lon) = @_;
+
+  assert( ($lat>=-90) && ($lat<=90) ), if DEBUG;
+  assert( ($lon>=-90) && ($lon<=90) ), if DEBUG;
+
   my $lat_m = MAGIC_NUM * log( tan( (($lat * DEG_TO_RAD) + (PI/2)) / 2 ) );
   my $lon_m = MAGIC_NUM * ($lon *DEG_TO_RAD);
   return ($lat_m, $lon_m);

@@ -3,13 +3,32 @@
 
 #########################
 
-# change 'tests => 1' to 'tests => last_test_to_print';
-
-use Test::More tests => 3;
+use Test::More tests => 22;
 BEGIN { use_ok('GPS::Lowrance') };
 
-ok( gps_to_unix_time( 0 ) == 694242000 );
-ok( unix_to_gps_time( 694242000 ) == 0 );
+# verify conversion routines
+
+ok( GPS::Lowrance::GPS_DATE_OFFSET == 694242000 );
+
+ok( gps_to_unix_time( 0 ) == GPS::Lowrance::GPS_DATE_OFFSET );
+ok( unix_to_gps_time( GPS::Lowrance::GPS_DATE_OFFSET ) == 0 );
+
+for my $i (-3..3) {
+  my $s = unpack "S", pack "s", $i;
+  ok( signed_int($s) == $i );
+  my $l = unpack "L", pack "l", $i;
+  ok( signed_long($l) == $i );
+}
+
+# Verify LSI constants
+
+ok( GPS::Lowrance::MAX_DELTAS == 40 );
+ok( GPS::Lowrance::MAX_BYTES  == 256 );
+
+# Verify other constants
+
+ok( GPS::Lowrance::CACHE );
+ok(!GPS::Lowrance::NO_CACHE );
 
 #########################
 
@@ -44,11 +63,11 @@ print STDERR $gps->get_product_description, "\n";
 # my $fo = new FileHandle ">foo.png";
 # binmode $fo; print $fo $img->png; $fo->close;
 
-$info = $gps->get_a_waypoint(  waypoint_number => 7 );
-print STDERR Data::Dumper->Dump([$info],['info']);
+# $info = $gps->get_a_waypoint(  waypoint_number => 7 );
+# print STDERR Data::Dumper->Dump([$info],['info']);
 
-print STDERR scalar(localtime(gps_to_unix_time($info->{date}))), "\n",
-     join(",", mercator_meters_to_degrees( $info->{latitude}, $info->{longitude} ) ), "\n";
+# print STDERR scalar(localtime(gps_to_unix_time($info->{date}))), "\n",
+#     join(",", mercator_meters_to_degrees( $info->{latitude}, $info->{longitude} ) ), "\n";
 
 
 # $info->{waypoint_number} = 13;
@@ -74,11 +93,42 @@ print STDERR scalar(localtime(gps_to_unix_time($info->{date}))), "\n",
 # $info = $gps->get_plot_trail_deltas( plot_trail_number => 0, number_of_deltas => 40, );
 # print STDERR Data::Dumper->Dump([$info],['info']);
 
-# use GPS::Lowrance::Trail;
-# my $trail = $gps->get_plot_trail( plot_trail_number => 0 );
-# my $fh = new FileHandle ">foo.txt";
-# $trail->write_lonlat( $fh );
-# $fh->close;
+
+
+use GPS::Lowrance::Trail;
+use GPS::Lowrance::Waypoints;
+
+sub callback {
+  my $info = shift;
+  print STDERR $info, "\r";
+}
+
+my $wpt = $gps->get_waypoints( callback => \&callback, waypoints => [1..4] );
+
+$wpt->write_utm( \*STDERR );
+
+$wpt = $gps->get_waypoints( callback => \&callback, waypoints => [5..8] );
+$wpt->write_utm( \*STDERR );
+
+$gps->set_waypoints( callback => \&callback, waypoints => $wpt );
+
+my $wpt = $gps->get_waypoints( callback => \&callback, waypoints => [1..4] );
+
+$wpt->write_utm( \*STDERR );
+
+
+# # print STDERR $gps->get_protocol_version, "\n";
+
+# my $trail = $gps->get_plot_trail( plot_trail_number => 1,
+#   callback => \&callback );
+
+# $trail->trail_num(1);
+
+# $gps->set_plot_trail( plot_trail => $trail, callback => \&callback );
+
+# $trail = $gps->get_plot_trail( plot_trail_number => 0 );
+# $trail->write_latlon( \*STDERR );
+
 
 
 $gps->disconnect;

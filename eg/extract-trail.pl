@@ -6,14 +6,15 @@ use strict;
 use FileHandle;
 use Getopt::Long;
 use GPS::Lowrance 0.10;
-use GPS::Lowrance::Trail 0.30;
+use GPS::Lowrance::Trail 0.40;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 my %ALLOWED_FORMATS = (
   'gdm16'  => 'write_gdm16',
   'latlon' => 'write_latlon',
   'utm'    => 'write_utm',
+  'gpx'    => 'write_gpx',
 );
 
 my ($Device, $BaudRate, $Filename, $TrailNo, $Format, $Quiet, $Help);
@@ -41,7 +42,7 @@ Extract trails from Lowrance or Eagle GPS.
   --device   Name of the serial device that the GPS is plugged in to
   --baudrate Baud rate
   --trail    Trail Number (between 1 and 4, depending on GPS unit)
-  --format   Trail format (latlon is default)
+  --format   Trail format (latlon|gdm16|utm|gpx) latlon is default
   --filename Name of file to extract to (STDOUT if not specified)
   --quiet    Turn off status
   --help     Display this screen

@@ -15,6 +15,7 @@ REQUIREMENTS
 
       Geo::Coordinates::DecimalDegrees
       Geo::Coordinates::UTM
+      XML::Generator
 
     If you want to use the screen capture function, you also need
     the following module:
@@ -36,7 +37,7 @@ REQUIREMENTS
 
 SYNOPSIS
       use GPS::Lowrance;
-      use GPS::Lowrace::Trail;
+      use GPS::Lowrance::Trail;
 
       $gps = GPS::Lowrance->connect(
                 Device     => 'com1',
@@ -48,22 +49,33 @@ SYNOPSIS
       $gps->disconnect;
 
 REVISION HISTORY
-    Changes to this package since v0.01:
+    Changes to this package since v0.10:
 
-    0.10  5 Mar 2004
-	- added callbacks to read_memory and get_plot_trail
-	- various changes to POD
-	- added gps_to_unix_time and unix_to_gps_time functions
-	- exports functions from Geo::Coordinates::MercatorMeters
-	- added get_number_of_icons method
-	- added get_a_waypoint and set_a_waypoint methods
-	- added capture-screen.pl example file
-	- added GPS::Lowrance::Screen module to extract screen
-	- added test case for MercatorMeters.pm to MANIFEST
-	- added extract-trail.pl example file
-	* get_num_of_plottrails renamed to get_num_of_plot_trails for
-	  consistency with other names
-	- minor changes in POD formatting
+    0.20  11 Mar 2004
+	- made send_a_waypoint synonym for set_a_waypoint to be
+          consistent with LSI naming convention
+	- added functional get_waypoints and set_waypoints methods
+        - added GPS::Lowrance::Waypoints class for waypoints
+	- added set_plot_trail
+	- get_plot_trail is an autoloading method
+	- removed AUTOLOAD, made module an AutoLoader
+	- autoloaded get_* methods created in BEGIN statement instead
+	* fixed reversed x and y for get_plot_trail_origin and
+          get_plot_trail_deltas
+	- added set_plot_trail_origin and _set_plot_trail_deltas
+	- added GPX format to eg/extract-trail.pl
+	- requires GPS::Lowrance::Trail 0.40
+	- fixed typo in POD SYNOPSIS
+           (thanks to Mike Castle <dalgoda at ix.netcom.com>)
+	- added test cases for LSI restriction constants
+	- converted hardcoded LSI restrictions to constants
+	- additional comments in code and updates to documentation
+	- additional assertions
+	- DESTROY method disconnects
+	- added test cases for some functions
+	- added assertions to Geo::Coordinates::MercatorMeters
+	- added signed_long and signed_int conversion functions
+	- decoding of signed integers should now be machine independent
 
 DESCRIPTION
     This module provides a variety of higher-level methods for communicating
@@ -84,10 +96,14 @@ CAVEATS
     "Device::SerialPort" on non-Windows platforms. However, this has not yet
     been tested.
 
-  Known Issues
-    The protocol uses little-endian values, and due to some quirks in the
-    decoding functions, they may not be converted properly on big-endian
-    machines.
+  Compatability
+    This module should work with all Lowrance and Eagle devices which
+    support the LSI 100 protocol.  It has been tested on the following
+    model(s):
+
+      Lowrance GlobalMap 100 (same as Eagle MapGuide Pro?)
+
+    If you have tested it on other models, please notify me.
 
 AUTHOR
     Robert Rothenberg <rrwo at cpan.org>
@@ -98,4 +114,3 @@ COPYRIGHT AND LICENSE
     This library is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself, either Perl version 5.8.2 or, at
     your option, any later version of Perl 5 you may have available.
-

@@ -1,6 +1,32 @@
 Revision history for Perl extension GPS::Lowrance. (Note: Changes that
 are not backwards compatible are marked with an asterisk, "*".)
 
+0.20  11 Mar 2004
+	- made send_a_waypoint synonym for set_a_waypoint to be
+          consistent with LSI naming convention
+	- added functional get_waypoints and set_waypoints methods
+        - added GPS::Lowrance::Waypoints class for waypoints
+	- added set_plot_trail
+	- get_plot_trail is an autoloading method
+	- removed AUTOLOAD, made module an AutoLoader
+	- autoloaded get_* methods created in BEGIN statement instead
+	* fixed reversed x and y for get_plot_trail_origin and
+          get_plot_trail_deltas
+	- added set_plot_trail_origin and _set_plot_trail_deltas
+	- added GPX format to eg/extract-trail.pl
+	- requires GPS::Lowrance::Trail 0.40
+	- fixed typo in POD SYNOPSIS
+           (thanks to Mike Castle <dalgoda at ix.netcom.com>)
+	- added test cases for LSI restriction constants
+	- converted hardcoded LSI restrictions to constants
+	- additional comments in code and updates to documentation
+	- additional assertions
+	- DESTROY method disconnects
+	- added test cases for some functions
+	- added assertions to Geo::Coordinates::MercatorMeters
+	- added signed_long and signed_int conversion functions
+	- decoding of signed integers should now be machine independent
+
 0.10  5 Mar 2004
 	- added callbacks to read_memory and get_plot_trail
 	- various changes to POD

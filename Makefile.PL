@@ -10,8 +10,9 @@ WriteMakefile(
       'GD'                         => 0,       # for GPS::Lowrance::Screen
       'Geo::Coordinates::UTM'      => 0.02,    # for GPS::Lowrance::Trail
       'Geo::Coordinates::DecimalDegrees' => 0, # for GPS::Lowrance::Trail
+      'XML::Generator'             => 0,       # for GPS::Lowrance::Trail
       'GPS::Lowrance::LSI'         => 0.23,
-      'GPS::Lowrance::Trail'       => 0.30,
+      'GPS::Lowrance::Trail'       => 0.40,
       'Parse::Binary::FixedFormat' => 0.02,
     }, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005

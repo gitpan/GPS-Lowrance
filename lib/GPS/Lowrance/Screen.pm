@@ -22,7 +22,7 @@ our @EXPORT = qw(
   get_current_screen
 );
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 sub get_current_screen {
   my $gps = shift;
@@ -123,6 +123,7 @@ GPS::Lowrance::Screen - capture screen from GPS device
 The following modules are required to use this module:
 
   Carp::Assert
+  GD
   GPS::Lowrance
 
 This module should work with Perl 5.6.x. It has been tested on Perl 5.8.2.
